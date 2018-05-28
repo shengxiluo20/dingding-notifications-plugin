@@ -24,6 +24,7 @@ import ren.wizard.dingtalkclient.message.LinkMessage;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.PrintStream;
 
 /**
  * @author uyangjie
@@ -35,14 +36,16 @@ public class DingTalkNotifier extends Notifier implements SimpleBuildStep {
     private String message;
     private String imageUrl;
     private String jenkinsUrl;
+    private String currentResult;
 
     @DataBoundConstructor
-    public DingTalkNotifier(String accessToken, String notifyPeople, String message, String imageUrl, String jenkinsUrl) {
+    public DingTalkNotifier(String accessToken, String notifyPeople, String message, String imageUrl, String jenkinsUrl, String currentResult) {
         this.accessToken = accessToken;
         this.notifyPeople = notifyPeople;
         this.message = message;
         this.imageUrl = imageUrl;
         this.jenkinsUrl = jenkinsUrl;
+        this.currentResult = currentResult;
     }
 
     public String getAccessToken() {
@@ -90,17 +93,37 @@ public class DingTalkNotifier extends Notifier implements SimpleBuildStep {
         this.jenkinsUrl = jenkinsUrl;
     }
 
+    public String getCurrentResult() {
+        return currentResult;
+    }
+
+    @DataBoundSetter
+    public void setCurrentResult(String currentResult) {
+        this.currentResult = currentResult;
+    }
+
     @Override
     public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
+        PrintStream log = taskListener.getLogger();
         String buildInfo = run.getFullDisplayName();
-        if (!StringUtils.isBlank(message)) {
-            sendMessage(LinkMessage.builder()
-                    .title(buildInfo + message)
-                    .picUrl(imageUrl)
-                    .text(message)
-                    .messageUrl((jenkinsUrl.endsWith("/") ? jenkinsUrl : jenkinsUrl + "/") + run.getUrl())
-                    .build());
+        log.println("构建结果:" + this.currentResult);
+
+        if ("SUCCESS".equals(this.currentResult)) {
+            log.println("返回结果:构建成功");
+            message = message + "[构建成功]";
+            imageUrl = "http://icons.iconarchive.com/icons/paomedia/small-n-flat/1024/sign-check-icon.png";
+        } else {
+            log.println("返回结果:构建失败");
+            message = message + "[构建失败]";
+            imageUrl = "http://www.iconsdb.com/icons/preview/soylent-red/x-mark-3-xxl.png";
         }
+
+        sendMessage(LinkMessage.builder()
+                .title(buildInfo + message)
+                .picUrl(imageUrl)
+                .text(message)
+                .messageUrl((jenkinsUrl.endsWith("/") ? jenkinsUrl : jenkinsUrl + "/") + run.getUrl())
+                .build());
     }
 
     private void sendMessage(DingMessage message) {
@@ -140,3 +163,4 @@ public class DingTalkNotifier extends Notifier implements SimpleBuildStep {
         }
     }
 }
+
